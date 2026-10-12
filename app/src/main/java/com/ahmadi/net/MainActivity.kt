@@ -142,7 +142,7 @@ class MainActivity : Activity() {
         val e = EditText(this).apply {
             this.hint = hint
             textSize = 15f
-            singleLine = true
+            setSingleLine(true)
             gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             if (numeric) inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL

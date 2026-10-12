@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -19,16 +19,16 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
       - name: Install Android platform
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Gradle 8.9
+        run: |
+          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d "$HOME"
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        run: "$HOME/gradle-8.9/bin/gradle" --no-daemon assembleDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:

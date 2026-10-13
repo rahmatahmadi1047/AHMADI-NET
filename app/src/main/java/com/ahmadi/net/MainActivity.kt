@@ -25,6 +25,8 @@ class MainActivity : Activity() {
     private lateinit var root: LinearLayout
     private lateinit var body: LinearLayout
     private val fa = Locale("fa", "AF")
+    @Volatile private var routerApi: RouterApi? = null
+    private val uiHandler by lazy { android.os.Handler(mainLooper) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,6 +86,7 @@ class MainActivity : Activity() {
         addNav(nav, "مشتری") { showCustomerForm() }
         addNav(nav, "ساخت کارت") { showCardForm() }
         addNav(nav, "گزارش") { showReports() }
+        addNav(nav, "روتر") { showRouter() }
         root.addView(nav)
         val scroll = ScrollView(this)
         body = LinearLayout(this).apply {
@@ -164,6 +167,111 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(8); bottomMargin = dp(8) })
     }
 
+
+    private fun showRouter() {
+        clear("مدیریت مستقیم MikroTik")
+        val box = cardBox()
+        label("آدرس IP روتر (مثلاً 172.16.1.1)", box)
+        val host = field("IP روتر یا IP از طریق VPN", box)
+        label("پورت API (پیش‌فرض 8728)", box)
+        val port = field("8728", box, true).apply { setText("8728") }
+        label("نام کاربری MikroTik", box)
+        val username = field("نام کاربری مدیر یا حساب محدود", box)
+        label("رمز روتر", box)
+        val password = field("رمز API روتر", box).apply { inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD }
+        val status = TextView(this).apply {
+            text = "وضعیت: وصل نیست"
+            textSize = 15f; setTextColor(Color.rgb(40,54,70)); gravity = Gravity.RIGHT
+        }
+        box.addView(status)
+        button("اتصال و بررسی روتر", box) {
+            val h = host.text.toString().trim()
+            val p = port.text.toString().toIntOrNull() ?: 8728
+            val u = username.text.toString().trim()
+            val pw = password.text.toString()
+            if (h.isBlank() || u.isBlank() || pw.isBlank()) { toast("آدرس، نام کاربری و رمز را وارد کنید"); return@button }
+            status.text = "در حال اتصال..."
+            Thread {
+                try {
+                    val api = RouterApi(h, p, u, pw)
+                    val ident = api.identity()
+                    val res = api.resource()
+                    val active = api.active()
+                    routerApi = api
+                    uiHandler.post {
+                        status.text = "وصل شد: ${ident["name"] ?: h}\nRouterOS: ${res["version"] ?: "نامشخص"}\nمدل/برد: ${res["board-name"] ?: "—"}\nمدت روشن‌بودن: ${res["uptime"] ?: "—"}\nکاربران آنلاین هات‌اسپات: ${active.size}"
+                        toast("اتصال روتر موفق بود")
+                    }
+                } catch (e: Exception) {
+                    routerApi = null
+                    uiHandler.post { status.text = "اتصال ناموفق: ${e.message ?: "خطای ناشناخته"}" }
+                }
+            }.start()
+        }
+        val manage = cardBox()
+        label("عملیات هات‌اسپات", manage)
+        label("ساخت یک کاربر یا تولید گروهی رمزها روی روتر واقعی.", manage)
+        label("نام کاربری جدید", manage); val newUser = field("مثلاً AN123456", manage)
+        label("رمز کاربر", manage); val newPass = field("رمز ورود هات‌اسپات", manage)
+        button("ساخت کاربر روی روتر", manage) {
+            val api = routerApi
+            val n = newUser.text.toString().trim()
+            val pw = newPass.text.toString().trim()
+            if (api == null) { toast("اول به روتر وصل شوید"); return@button }
+            if (n.isBlank() || pw.isBlank()) { toast("نام کاربری و رمز را وارد کنید"); return@button }
+            Thread {
+                try {
+                    api.addUser(n, pw)
+                    uiHandler.post { toast("کاربر $n روی روتر ساخته شد") }
+                } catch (e: Exception) { uiHandler.post { toast("خطا: ${e.message}") } }
+            }.start()
+        }
+        label("پیشوند نام کاربری گروهی", manage); val prefix = field("AN", manage).apply { setText("AN") }
+        label("تعداد رمزها (حداکثر 100)", manage); val count = field("تعداد", manage, true).apply { setText("10") }
+        button("ساخت گروهی رمزها روی روتر", manage) {
+            val api = routerApi
+            val pref = prefix.text.toString().trim().ifBlank { "AN" }
+            val amount = (count.text.toString().toIntOrNull() ?: 0).coerceIn(0, 100)
+            if (api == null) { toast("اول به روتر وصل شوید"); return@button }
+            if (amount == 0) { toast("تعداد باید بین 1 تا 100 باشد"); return@button }
+            Thread {
+                var made = 0
+                var lastError = ""
+                repeat(amount) {
+                    val n = pref + Random.nextInt(100000, 999999)
+                    val pw = Random.nextInt(100000, 999999).toString()
+                    try { api.addUser(n, pw); made++ } catch (e: Exception) { lastError = e.message ?: "خطا" }
+                }
+                uiHandler.post { toast("ساخته شد: $made از $amount" + if (lastError.isNotBlank()) "؛ خطا: $lastError" else "") }
+            }.start()
+        }
+        button("نمایش کاربران آنلاین و مصرف جلسه", manage) {
+            val api = routerApi
+            if (api == null) { toast("اول به روتر وصل شوید"); return@button }
+            status.text = "در حال خواندن کاربران..."
+            Thread {
+                try {
+                    val active = api.active()
+                    val users = api.users()
+                    uiHandler.post {
+                        val out = StringBuilder("کاربران آنلاین: ${active.size}\n\n")
+                        active.forEach { a ->
+                            out.append("کاربر: ${a["user"] ?: a["name"] ?: "—"}\n")
+                            out.append("IP: ${a["address"] ?: "—"}\n")
+                            out.append("دریافت: ${a["bytes-in"] ?: "0"} بایت | ارسال: ${a["bytes-out"] ?: "0"} بایت\n")
+                            out.append("زمان اتصال: ${a["uptime"] ?: "—"}\n\n")
+                        }
+                        out.append("کل کاربران ثبت‌شده: ${users.size}")
+                        status.text = out.toString()
+                    }
+                } catch (e: Exception) { uiHandler.post { status.text = "خطا: ${e.message}" } }
+            }.start()
+        }
+        val warning = cardBox()
+        label("نکته امنیتی مهم", warning)
+        label("این نسخه از API معمولی روتر استفاده می‌کند. فقط در شبکه محلی یا VPN امن وصل شوید؛ پورت 8728 را در اینترنت باز نکنید. برای استفاده از راه دور، VPN مثل WireGuard و یک کاربر MikroTik با دسترسی محدود بسازید. رمز روتر در برنامه ذخیره نمی‌شود.", warning)
+    }
+
     private fun showHome() {
         clear("داشبورد")
         val soldToday = cards.filter { it.optString("date") == today() }
@@ -185,7 +293,7 @@ class MainActivity : Activity() {
         val note = cardBox()
         label("یادداشت", note)
         label("اطلاعات این نسخه روی همین گوشی ذخیره می‌شود. از اطلاعات خود نسخه پشتیبان تهیه کنید.", note)
-        label("اتصال MikroTik هنوز فعال نیست.", note)
+        label("برای اتصال به روتر، بخش «روتر» را باز کنید.", note)
     }
 
     private fun showCustomerForm() {

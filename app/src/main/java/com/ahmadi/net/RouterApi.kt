@@ -28,10 +28,10 @@ class RouterApi(
         val c = input.read()
         if (c < 0) throw IllegalStateException("روتر اتصال را بست")
         return when {
-            c and 0x80 == 0 -> c
-            c and 0xC0 == 0x80 -> ((c and 0x3f) shl 8) or input.read()
-            c and 0xE0 == 0xC0 -> ((c and 0x1f) shl 16) or (input.read() shl 8) or input.read()
-            c and 0xF0 == 0xE0 -> ((c and 0x0f) shl 24) or (input.read() shl 16) or (input.read() shl 8) or input.read()
+            (c and 0x80) == 0 -> c
+            (c and 0xC0) == 0x80 -> ((c and 0x3f) shl 8) or input.read()
+            (c and 0xE0) == 0xC0 -> ((c and 0x1f) shl 16) or (input.read() shl 8) or input.read()
+            (c and 0xF0) == 0xE0 -> ((c and 0x0f) shl 24) or (input.read() shl 16) or (input.read() shl 8) or input.read()
             else -> { repeat(4) { input.read() }; 0 }
         }
     }

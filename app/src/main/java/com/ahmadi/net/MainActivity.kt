@@ -267,6 +267,44 @@ class MainActivity : Activity() {
                 } catch (e: Exception) { uiHandler.post { status.text = "خطا: ${e.message}" } }
             }.start()
         }
+        label("مدیریت حساب موجود", manage)
+        val targetUser = field("نام کاربری برای جستجو یا قطع اتصال", manage)
+        button("غیرفعال‌کردن حساب کاربر", manage) {
+            val api = routerApi
+            val n = targetUser.text.toString().trim()
+            if (api == null) { toast("اول به روتر وصل شوید"); return@button }
+            if (n.isBlank()) { toast("نام کاربری را وارد کنید"); return@button }
+            Thread {
+                try {
+                    val found = api.users().firstOrNull { it["name"] == n }
+                    if (found == null) uiHandler.post { toast("این کاربر در روتر پیدا نشد") }
+                    else {
+                        val id = found[".id"] ?: throw IllegalStateException("شناسه کاربر دریافت نشد")
+                        api.disableUser(id)
+                        uiHandler.post { toast("حساب $n غیرفعال شد") }
+                    }
+                } catch (e: Exception) { uiHandler.post { toast("خطا: ${e.message}") } }
+            }.start()
+        }
+        button("قطع اتصال فعال این کاربر", manage) {
+            val api = routerApi
+            val n = targetUser.text.toString().trim()
+            if (api == null) { toast("اول به روتر وصل شوید"); return@button }
+            if (n.isBlank()) { toast("نام کاربری را وارد کنید"); return@button }
+            Thread {
+                try {
+                    val found = api.active().filter { (it["user"] ?: it["name"]) == n }
+                    if (found.isEmpty()) uiHandler.post { toast("این کاربر آنلاین نیست") }
+                    else {
+                        found.forEach { row ->
+                            val id = row[".id"] ?: throw IllegalStateException("شناسه نشست دریافت نشد")
+                            api.removeActive(id)
+                        }
+                        uiHandler.post { toast("اتصال $n قطع شد") }
+                    }
+                } catch (e: Exception) { uiHandler.post { toast("خطا: ${e.message}") } }
+            }.start()
+        }
         val warning = cardBox()
         label("نکته امنیتی مهم", warning)
         label("این نسخه از API معمولی روتر استفاده می‌کند. فقط در شبکه محلی یا VPN امن وصل شوید؛ پورت 8728 را در اینترنت باز نکنید. برای استفاده از راه دور، VPN مثل WireGuard و یک کاربر MikroTik با دسترسی محدود بسازید. رمز روتر در برنامه ذخیره نمی‌شود.", warning)

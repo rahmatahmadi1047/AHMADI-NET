@@ -213,6 +213,7 @@ class MainActivity : Activity() {
         label("ساخت یک کاربر یا تولید گروهی رمزها روی روتر واقعی.", manage)
         label("نام کاربری جدید", manage); val newUser = field("مثلاً AN123456", manage)
         label("رمز کاربر", manage); val newPass = field("رمز ورود هات‌اسپات", manage)
+        label("نام پروفایل هات‌اسپات در روتر", manage); val singleProfile = field("default", manage).apply { setText("default") }
         button("ساخت کاربر روی روتر", manage) {
             val api = routerApi
             val n = newUser.text.toString().trim()
@@ -221,13 +222,14 @@ class MainActivity : Activity() {
             if (n.isBlank() || pw.isBlank()) { toast("نام کاربری و رمز را وارد کنید"); return@button }
             Thread {
                 try {
-                    api.addUser(n, pw)
+                    api.addUser(n, pw, singleProfile.text.toString().trim().ifBlank { "default" })
                     uiHandler.post { toast("کاربر $n روی روتر ساخته شد") }
                 } catch (e: Exception) { uiHandler.post { toast("خطا: ${e.message}") } }
             }.start()
         }
         label("پیشوند نام کاربری گروهی", manage); val prefix = field("AN", manage).apply { setText("AN") }
         label("تعداد رمزها (حداکثر 100)", manage); val count = field("تعداد", manage, true).apply { setText("10") }
+        label("پروفایل برای همه کاربران گروهی", manage); val bulkProfile = field("default", manage).apply { setText("default") }
         button("ساخت گروهی رمزها روی روتر", manage) {
             val api = routerApi
             val pref = prefix.text.toString().trim().ifBlank { "AN" }
@@ -240,7 +242,7 @@ class MainActivity : Activity() {
                 repeat(amount) {
                     val n = pref + Random.nextInt(100000, 999999)
                     val pw = Random.nextInt(100000, 999999).toString()
-                    try { api.addUser(n, pw); made++ } catch (e: Exception) { lastError = e.message ?: "خطا" }
+                    try { api.addUser(n, pw, bulkProfile.text.toString().trim().ifBlank { "default" }); made++ } catch (e: Exception) { lastError = e.message ?: "خطا" }
                 }
                 uiHandler.post { toast("ساخته شد: $made از $amount" + if (lastError.isNotBlank()) "؛ خطا: $lastError" else "") }
             }.start()
@@ -264,6 +266,36 @@ class MainActivity : Activity() {
                         out.append("کل کاربران ثبت‌شده: ${users.size}")
                         status.text = out.toString()
                     }
+                } catch (e: Exception) { uiHandler.post { status.text = "خطا: ${e.message}" } }
+            }.start()
+        }
+        label("بررسی حساب و مصرف کاربر", manage)
+        val usageUser = field("نام کاربری هات‌اسپات", manage)
+        button("بررسی بسته و مصرف کاربر", manage) {
+            val api = routerApi
+            val n = usageUser.text.toString().trim()
+            if (api == null) { toast("اول به روتر وصل شوید"); return@button }
+            if (n.isBlank()) { toast("نام کاربری را وارد کنید"); return@button }
+            status.text = "در حال بررسی حساب..."
+            Thread {
+                try {
+                    val account = api.users().firstOrNull { it["name"] == n }
+                    val session = api.active().firstOrNull { (it["user"] ?: it["name"]) == n }
+                    val details = if (account == null) "حساب $n در روتر پیدا نشد." else buildString {
+                        append("نام کاربری: $n\\n")
+                        append("پروفایل/بسته: ${account["profile"] ?: "نامشخص"}\\n")
+                        append("محدودیت زمان: ${account["limit-uptime"] ?: "بدون محدودیت ثبت‌شده"}\\n")
+                        append("محدودیت حجم: ${account["limit-bytes-total"] ?: "بدون محدودیت حجم ثبت‌شده"} بایت\\n")
+                        append("وضعیت: " + if (session != null) "آنلاین" else "آفلاین" + "\\n")
+                        if (session != null) {
+                            append("IP فعلی: ${session["address"] ?: "—"}\\n")
+                            append("مدت این نشست: ${session["uptime"] ?: "—"}\\n")
+                            append("دریافت این نشست: ${session["bytes-in"] ?: "0"} بایت\\n")
+                            append("ارسال این نشست: ${session["bytes-out"] ?: "0"} بایت\\n")
+                            append("توجه: این ارقام مصرف نشست فعلی است، نه تاریخچه کل مصرف.")
+                        } else append("چون کاربر آفلاین است، مصرف نشست فعلی در دسترس نیست. برای تاریخچه دقیق باید RADIUS accounting یا ثبت دوره‌ای مصرف تنظیم شود.")
+                    }
+                    uiHandler.post { status.text = details }
                 } catch (e: Exception) { uiHandler.post { status.text = "خطا: ${e.message}" } }
             }.start()
         }

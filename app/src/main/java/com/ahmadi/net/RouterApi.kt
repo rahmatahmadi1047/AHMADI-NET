@@ -67,13 +67,13 @@ class RouterApi(
             val output = BufferedOutputStream(socket.getOutputStream())
             writeSentence(output, listOf("/login", "=name=$username", "=password=$password"))
             var loginOk = false
-            repeat(10) {
+            var attempts = 0
+            while (!loginOk && attempts++ < 10) {
                 val sentence = readSentence(input)
                 if (sentence.firstOrNull() == "!done") loginOk = true
                 if (sentence.firstOrNull() == "!trap" || sentence.firstOrNull() == "!fatal") {
                     throw IllegalStateException(sentence.joinToString(" "))
                 }
-                if (loginOk) return@repeat
             }
             if (!loginOk) throw IllegalStateException("ورود روتر ناموفق است؛ نام کاربری و رمز/API را بررسی کنید")
             val words = mutableListOf(path)

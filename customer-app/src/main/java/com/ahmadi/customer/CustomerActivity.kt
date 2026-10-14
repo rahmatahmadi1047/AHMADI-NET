@@ -57,7 +57,7 @@ class CustomerActivity : Activity() {
         val username = EditText(this).apply {
             hint = "نام کاربری خود را وارد کنید"
             textSize = 16f
-            singleLine = true
+            isSingleLine = true
             setPadding(dp(14), dp(10), dp(14), dp(10))
             layoutDirection = android.view.View.LAYOUT_DIRECTION_LTR
             setBackgroundColor(Color.WHITE)

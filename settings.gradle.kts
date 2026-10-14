@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "AHMADI-NET"
-include(":app")
+include(":app", ":customer-app")

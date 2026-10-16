@@ -1,30 +1,22 @@
 package com.ahmadi.customer
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/**
- * AHMADI-NET customer app first implementation.
- *
- * This screen deliberately does not transmit credentials: the company/RADIUS
- * authentication endpoint has not yet been configured. Do not replace this
- * guard with direct client-to-router API access.
- */
+/** AHMADI-NET customer home screen. Credentials are entered only on the official company portal. */
 class CustomerActivity : Activity() {
     private val navy = Color.rgb(10, 54, 50)
-    private val green = Color.rgb(13, 148, 136)
     private val blue = Color.rgb(28, 105, 190)
     private val ink = Color.rgb(28, 42, 55)
     private val muted = Color.rgb(100, 116, 139)
@@ -103,74 +95,44 @@ class CustomerActivity : Activity() {
             bottomMargin = dp(18)
         })
 
-        val form = panel()
-        form.addView(TextView(this).apply {
-            text = "ورود به حساب"
-            textSize = 22f
+        val card = panel()
+        card.addView(TextView(this).apply {
+            text = "ورود امن به حساب اینترنت"
+            textSize = 21f
             setTextColor(navy)
             typeface = Typeface.DEFAULT_BOLD
         }, matchWrap())
-        form.addView(TextView(this).apply {
-            text = "نام کاربری و رمز حساب اینترنت خود را وارد کنید."
-            textSize = 13f
+        card.addView(TextView(this).apply {
+            text = "برای حفظ امنیت، نام کاربری و رمز خود را فقط در صفحه رسمی SAS RADIUS وارد کنید. احمدی‌نت رمز شما را دریافت یا ذخیره نمی‌کند."
+            textSize = 14f
             setTextColor(muted)
-            setPadding(0, dp(6), 0, dp(16))
+            setPadding(0, dp(8), 0, dp(16))
         }, matchWrap())
 
-        form.addView(fieldLabel("نام کاربری اینترنت"))
-        val username = input("نام کاربری خود را وارد کنید")
-        form.addView(username, inputParams())
-
-        form.addView(fieldLabel("رمز حساب اینترنت"))
-        val password = input("رمز حساب خود را وارد کنید").apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        form.addView(password, inputParams())
-
-        val result = TextView(this).apply {
-            text = "اتصال امن هنوز تنظیم نشده است. فعلاً اطلاعات ورود شما ارسال یا ذخیره نمی‌شود."
-            textSize = 14f
-            setTextColor(Color.rgb(120, 74, 10))
-            background = rounded(Color.rgb(255, 247, 224), 12)
-            setPadding(dp(13), dp(13), dp(13), dp(13))
-            gravity = Gravity.RIGHT
-        }
-        form.addView(result, LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = dp(6)
-            bottomMargin = dp(12)
-        })
-
         val login = Button(this).apply {
-            text = "ورود و مشاهده حساب"
+            text = "بازکردن پنل رسمی و مشاهده حساب"
             textSize = 16f
             isAllCaps = false
             setTextColor(Color.WHITE)
             background = rounded(blue, 14)
             setOnClickListener {
-                val user = username.text.toString().trim()
-                val pass = password.text.toString()
-                result.text = when {
-                    user.isBlank() -> "لطفاً نام کاربری اینترنت را وارد کنید."
-                    pass.isBlank() -> "لطفاً رمز حساب اینترنت را وارد کنید."
-                    else -> "برای امنیت حساب شما، ورود تا زمان آماده‌شدن سرویس امن غیرفعال است. اطلاعات واردشده ارسال یا ذخیره نشد. لطفاً فعلاً رمز واقعی خود را وارد نکنید."
-                }
+                startActivity(Intent(this@CustomerActivity, PortalActivity::class.java))
             }
         }
-        form.addView(login, LinearLayout.LayoutParams(-1, dp(52)))
-        page.addView(form, matchWrap())
+        card.addView(login, LinearLayout.LayoutParams(-1, dp(54)))
+        page.addView(card, matchWrap())
 
         val info = panel()
         info.addView(TextView(this).apply {
-            text = "در حساب خود چه خواهید دید؟"
+            text = "در پنل شرکت می‌توانید ببینید:"
             textSize = 17f
             setTextColor(navy)
             typeface = Typeface.DEFAULT_BOLD
         }, matchWrap())
         listOf(
             "حجم مصرف‌شده و باقی‌مانده",
-            "اعتبار و نوع بسته اینترنت",
-            "وضعیت فعال یا غیرفعال بودن حساب",
-            "بنرها و اطلاعیه‌های جدید احمدی‌نت"
+            "اعتبار، نوع بسته و تاریخ انقضا",
+            "وضعیت فعال یا غیرفعال بودن حساب"
         ).forEach { line ->
             info.addView(TextView(this).apply {
                 text = "✓  $line"
@@ -200,36 +162,12 @@ class CustomerActivity : Activity() {
         elevation = dp(2).toFloat()
     }
 
-    private fun fieldLabel(value: String) = TextView(this).apply {
-        text = value
-        textSize = 14f
-        setTextColor(ink)
-        setPadding(0, dp(4), 0, dp(6))
-    }
-
-    private fun input(hintText: String) = EditText(this).apply {
-        hint = hintText
-        textSize = 15f
-        isSingleLine = true
-        layoutDirection = View.LAYOUT_DIRECTION_LTR
-        textDirection = View.TEXT_DIRECTION_LTR
-        setTextColor(ink)
-        setHintTextColor(muted)
-        setPadding(dp(12), 0, dp(12), 0)
-        background = rounded(Color.rgb(246, 249, 250), 12)
-    }
-
-    private fun inputParams() = LinearLayout.LayoutParams(-1, dp(52)).apply {
-        bottomMargin = dp(12)
-    }
-
     private fun rounded(color: Int, radiusDp: Int) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = dp(radiusDp).toFloat()
     }
 
-    private fun dp(value: Int): Int =
-        (value * resources.displayMetrics.density).toInt()
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun matchWrap() = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,

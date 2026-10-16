@@ -1,32 +1,23 @@
 package com.ahmadi.customer
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
-import android.webkit.SslErrorHandler
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.net.http.SslError
-import android.content.Intent
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.view.Gravity
-import android.view.ViewGroup
 
 /**
- * Loads the official SAS RADIUS customer portal.
- * Never ignore certificate errors; credentials must only be entered over valid HTTPS.
+ * Opens the official SAS RADIUS portal in the device browser.
+ * This avoids weakening WebView TLS checks; the app never handles customer credentials.
  */
 class PortalActivity : Activity() {
-    private val portalHost = "169.58.110.86"
-    private lateinit var webView: WebView
-    private lateinit var status: TextView
+    private val portalUrl = "https://169.58.110.86/user/#/login"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,89 +27,52 @@ class PortalActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(28, 28, 28, 28)
             setBackgroundColor(Color.WHITE)
         }
-        status = TextView(this).apply {
-            text = "در حال بازکردن پنل رسمی شرکت..."
-            textSize = 14f
+
+        val title = TextView(this).apply {
+            text = "ورود امن به پنل رسمی شرکت"
+            textSize = 21f
+            setTextColor(Color.rgb(10, 54, 50))
+            gravity = Gravity.CENTER
+        }
+        root.addView(title, LinearLayout.LayoutParams(-1, -2))
+
+        val description = TextView(this).apply {
+            text = "برای محافظت از رمز شما، پنل SAS RADIUS در مرورگر موبایل باز می‌شود. رمز خود را فقط در صفحه رسمی شرکت وارد کنید."
+            textSize = 16f
             setTextColor(Color.rgb(45, 55, 65))
             gravity = Gravity.CENTER
-            setPadding(16, 12, 16, 12)
+            setPadding(0, 20, 0, 24)
         }
-        root.addView(status, LinearLayout.LayoutParams(-1, -2))
+        root.addView(description, LinearLayout.LayoutParams(-1, -2))
 
-        webView = WebView(this)
-        root.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
+        val openButton = Button(this).apply {
+            text = "بازکردن پنل رسمی در مرورگر"
+            setOnClickListener { openPortal() }
+        }
+        root.addView(openButton, LinearLayout.LayoutParams(-1, -2))
+
+        val note = TextView(this).apply {
+            text = "اگر مرورگر هشدار گواهی امنیتی نشان داد، هشدار را نادیده نگیرید و با شرکت ارائه‌دهنده اینترنت تماس بگیرید."
+            textSize = 13f
+            setTextColor(Color.rgb(130, 65, 20))
+            gravity = Gravity.CENTER
+            setPadding(0, 20, 0, 0)
+        }
+        root.addView(note, LinearLayout.LayoutParams(-1, -2))
+
         setContentView(root)
-
-        webView.settings.javaScriptEnabled = true // Required by the SAS RADIUS web app.
-        webView.settings.domStorageEnabled = true
-        webView.settings.allowFileAccess = false
-        webView.settings.allowContentAccess = false
-        webView.settings.javaScriptCanOpenWindowsAutomatically = false
-        webView.settings.setSupportMultipleWindows(false)
-        webView.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            webView.settings.safeBrowsingEnabled = true
-        }
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                return handleNavigation(request.url.toString())
-            }
-
-            @Suppress("DEPRECATION")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return handleNavigation(url)
-            }
-
-            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                status.text = "پنل رسمی SAS RADIUS"
-            }
-
-            override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
-                handler.cancel()
-                status.text = "خطای گواهی امنیتی HTTPS. برای محافظت از رمز شما، صفحه باز نشد. تاریخ و ساعت موبایل و گواهی سایت باید بررسی شود."
-            }
-
-            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                if (request.isForMainFrame) {
-                    status.text = "صفحه باز نشد. اینترنت و دسترسی به پنل شرکت را بررسی کنید."
-                }
-            }
-        }
-        webView.webChromeClient = WebChromeClient()
-        webView.loadUrl("https://169.58.110.86/user/#/login")
     }
 
-    private fun handleNavigation(rawUrl: String): Boolean {
-        val uri = runCatching { Uri.parse(rawUrl) }.getOrNull() ?: return true
-        if (uri.scheme != "https") {
-            status.text = "برای امنیت، فقط اتصال HTTPS مجاز است."
-            return true
+    private fun openPortal() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            // Keep the page visible so the user can see the instruction if no browser exists.
         }
-        if (uri.host.equals(portalHost, ignoreCase = true)) return false
-
-        // Other HTTPS origins open outside this app, so the app does not collect their credentials.
-        return try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
-            true
-        } catch (_: Exception) {
-            status.text = "این پیوند امن در موبایل باز نشد."
-            true
-        }
-    }
-
-    @Deprecated("Deprecated in Android 13")
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
-        else super.onBackPressed()
-    }
-
-    override fun onDestroy() {
-        if (::webView.isInitialized) {
-            webView.stopLoading()
-            webView.destroy()
-        }
-        super.onDestroy()
     }
 }

@@ -1,118 +1,176 @@
 package com.ahmadi.customer
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 
+/** AHMADI-NET customer home screen. Credentials are entered only on the official company portal. */
 class CustomerActivity : Activity() {
-    private val navy = Color.rgb(18, 42, 77)
+    private val navy = Color.rgb(10, 54, 50)
     private val blue = Color.rgb(28, 105, 190)
-    private val muted = Color.rgb(95, 108, 125)
+    private val ink = Color.rgb(28, 42, 55)
+    private val muted = Color.rgb(100, 116, 139)
+    private val pageColor = Color.rgb(244, 248, 247)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = navy
         window.navigationBarColor = navy
-        window.decorView.layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
+        window.decorView.layoutDirection = View.LAYOUT_DIRECTION_RTL
 
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(pageColor)
+            isFillViewport = true
+        }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.TOP
-            setPadding(dp(24), dp(34), dp(24), dp(24))
-            setBackgroundColor(Color.rgb(246, 248, 252))
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            setPadding(dp(20), dp(22), dp(20), dp(28))
         }
+        scroll.addView(page)
 
-        val title = TextView(this).apply {
-            text = "احمدی‌نت"
-            textSize = 30f
-            setTextColor(navy)
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = rounded(navy, 22)
+            setPadding(dp(18), dp(22), dp(18), dp(22))
+        }
+        header.addView(TextView(this).apply {
+            text = "◉  احمدی‌نت"
+            textSize = 29f
+            setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-        }
-        page.addView(title, matchWrap())
-
-        val subtitle = TextView(this).apply {
+        }, matchWrap())
+        header.addView(TextView(this).apply {
             text = "پنل مشتریان اینترنت"
-            textSize = 17f
-            setTextColor(muted)
-            gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, dp(26))
-        }
-        page.addView(subtitle, matchWrap())
-
-        val label = TextView(this).apply {
-            text = "نام کاربری اینترنت"
-            textSize = 16f
-            setTextColor(navy)
-        }
-        page.addView(label, matchWrap())
-
-        val username = EditText(this).apply {
-            hint = "نام کاربری خود را وارد کنید"
-            textSize = 16f
-            isSingleLine = true
-            setPadding(dp(14), dp(10), dp(14), dp(10))
-            layoutDirection = android.view.View.LAYOUT_DIRECTION_LTR
-            setBackgroundColor(Color.WHITE)
-        }
-        val inputParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(54)
-        ).apply { topMargin = dp(8); bottomMargin = dp(16) }
-        page.addView(username, inputParams)
-
-        val check = Button(this).apply {
-            text = "بررسی مصرف و اعتبار"
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(blue)
-        }
-        page.addView(check, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
-        ))
-
-        val result = TextView(this).apply {
-            text = "برای حفاظت از اطلاعات شما، این نسخه هنوز به سامانه شرکت اینترنتی وصل نیست. تا زمان فعال‌شدن اتصال امن، اطلاعات ورود خود را وارد نکنید."
             textSize = 15f
-            setTextColor(navy)
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            setBackgroundColor(Color.rgb(232, 240, 250))
+            setTextColor(Color.rgb(210, 244, 236))
             gravity = Gravity.CENTER
-        }
-        val resultParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(20) }
-        page.addView(result, resultParams)
+            setPadding(0, dp(7), 0, 0)
+        }, matchWrap())
+        page.addView(header, matchWrap())
 
-        check.setOnClickListener {
-            val name = username.text.toString().trim()
-            result.text = if (name.isBlank()) {
-                "لطفاً نام کاربری اینترنت خود را وارد کنید."
-            } else {
-                "اتصال امن شرکت هنوز تنظیم نشده است؛ اطلاعات مصرف و اعتبار فعلاً قابل دریافت نیست. نام کاربری شما در این نسخه ارسال یا ذخیره نمی‌شود."
+        val ad = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(10, 110, 101), Color.rgb(13, 148, 136), Color.rgb(23, 78, 91))
+            ).apply { cornerRadius = dp(20).toFloat() }
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+        }
+        ad.addView(TextView(this).apply {
+            text = "📶  اینترنت رحمت احمدی"
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+        }, matchWrap())
+        ad.addView(TextView(this).apply {
+            text = "اتصال بهتر، خدمات مطمئن‌تر"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(9), 0, dp(5))
+        }, matchWrap())
+        ad.addView(TextView(this).apply {
+            text = "برای بسته‌ها و پیشنهادهای تازه با احمدی‌نت در تماس باشید"
+            textSize = 12f
+            setTextColor(Color.rgb(226, 255, 249))
+            gravity = Gravity.CENTER
+        }, matchWrap())
+        page.addView(ad, LinearLayout.LayoutParams(-1, dp(148)).apply {
+            topMargin = dp(16)
+            bottomMargin = dp(18)
+        })
+
+        val card = panel()
+        card.addView(TextView(this).apply {
+            text = "ورود امن به حساب اینترنت"
+            textSize = 21f
+            setTextColor(navy)
+            typeface = Typeface.DEFAULT_BOLD
+        }, matchWrap())
+        card.addView(TextView(this).apply {
+            text = "برای حفظ امنیت، نام کاربری و رمز خود را فقط در صفحه رسمی SAS RADIUS وارد کنید. احمدی‌نت رمز شما را دریافت یا ذخیره نمی‌کند."
+            textSize = 14f
+            setTextColor(muted)
+            setPadding(0, dp(8), 0, dp(16))
+        }, matchWrap())
+
+        val login = Button(this).apply {
+            text = "بازکردن پنل رسمی و مشاهده حساب"
+            textSize = 16f
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = rounded(blue, 14)
+            setOnClickListener {
+                startActivity(Intent(this@CustomerActivity, PortalActivity::class.java))
             }
         }
+        card.addView(login, LinearLayout.LayoutParams(-1, dp(54)))
+        page.addView(card, matchWrap())
 
-        val footer = TextView(this).apply {
-            text = "نسخه مشتریان • احمدی‌نت"
+        val info = panel()
+        info.addView(TextView(this).apply {
+            text = "در پنل شرکت می‌توانید ببینید:"
+            textSize = 17f
+            setTextColor(navy)
+            typeface = Typeface.DEFAULT_BOLD
+        }, matchWrap())
+        listOf(
+            "حجم مصرف‌شده و باقی‌مانده",
+            "اعتبار، نوع بسته و تاریخ انقضا",
+            "وضعیت فعال یا غیرفعال بودن حساب"
+        ).forEach { line ->
+            info.addView(TextView(this).apply {
+                text = "✓  $line"
+                textSize = 14f
+                setTextColor(ink)
+                setPadding(0, dp(9), 0, dp(2))
+            }, matchWrap())
+        }
+        page.addView(info, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
+
+        page.addView(TextView(this).apply {
+            text = "AHMADI-NET  •  خدمات اینترنتی رحمت احمدی\nنسخه اولیه مشتریان"
             textSize = 12f
             setTextColor(muted)
             gravity = Gravity.CENTER
-            setPadding(0, dp(28), 0, 0)
-        }
-        page.addView(footer, matchWrap())
-        setContentView(page)
+            setPadding(0, dp(20), 0, 0)
+        }, matchWrap())
+
+        setContentView(scroll)
+    }
+
+    private fun panel() = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        layoutDirection = View.LAYOUT_DIRECTION_RTL
+        background = rounded(Color.WHITE, 18)
+        setPadding(dp(16), dp(17), dp(16), dp(17))
+        elevation = dp(2).toFloat()
+    }
+
+    private fun rounded(color: Int, radiusDp: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radiusDp).toFloat()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun matchWrap() = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
     )
 }

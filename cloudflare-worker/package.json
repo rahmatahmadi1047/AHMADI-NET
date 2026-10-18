@@ -1,0 +1,12 @@
+{
+  "name": "ahmadi-net-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --input-type=module --check < src/index.js",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

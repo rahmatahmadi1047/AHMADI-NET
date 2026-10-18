@@ -11,7 +11,7 @@
   "vpc_networks": [
     {
       "binding": "PRIVATE_NETWORK",
-      "network_id": "cf1:network",
+      "tunnel_id": "9e19496a-110b-4dda-a0d8-d935c0f44840",
       "remote": true
     }
   ]

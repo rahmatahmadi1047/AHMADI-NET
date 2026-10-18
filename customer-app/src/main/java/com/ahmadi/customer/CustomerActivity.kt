@@ -23,7 +23,7 @@ class CustomerActivity : Activity() {
     private val navy = Color.rgb(18, 42, 77)
     private val blue = Color.rgb(28, 105, 190)
     private val muted = Color.rgb(95, 108, 125)
-    private val baseUrl = "https://my-ahmadinet.workers.dev"
+    private val baseUrl = "https://ahmadinet.rahmat-ahmadi1047.workers.dev"
 
     private var sessionToken: String? = null
     private lateinit var usernameInput: EditText

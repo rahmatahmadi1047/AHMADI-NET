@@ -291,8 +291,17 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (url.pathname === "/health" && request.method === "GET") {
-      return json({ ok: true, service: "AHMADI-NET API", mode: "worker-ready" });
+
+    // Public status endpoint: the Android app expects every successful JSON
+    // response to include ok: true.
+    if ((url.pathname === "/" || url.pathname === "/health") && request.method === "GET") {
+      return json({
+        ok: true,
+        status: "online",
+        service: "AHMADI-NET API",
+        message: "Cloudflare Worker is running.",
+        mode: "worker-ready",
+      });
     }
 
     if (url.pathname === "/api/login" && request.method === "POST") {

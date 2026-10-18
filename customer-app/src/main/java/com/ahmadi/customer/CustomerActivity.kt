@@ -227,9 +227,9 @@ class CustomerActivity : Activity() {
 
             // ثبت پاسخ خام برای عیب‌یابی؛ رمز و توکن درخواست ثبت نمی‌شود.
             Log.d("AHMADI_NET_API", "$method $path | HTTP $status | Content-Type: $contentType")
-            Log.d("AHMADI_NET_API", "Raw response: ${rawBody.take(2000)}")
 
             if (rawBody.isBlank()) {
+                Log.w("AHMADI_NET_API", "Empty response body for $path")
                 throw ApiException("پاسخ سرور خالی است (HTTP $status، $contentType).", status)
             }
 
@@ -237,7 +237,7 @@ class CustomerActivity : Activity() {
                 JSONObject(rawBody)
             } catch (parseError: Exception) {
                 val preview = rawBody.take(300).replace("\\n", " ").replace("\\r", " ")
-                Log.e("AHMADI_NET_API", "JSON parse failed for $path", parseError)
+                Log.e("AHMADI_NET_API", "JSON parse failed for $path; raw response: ${preview.take(300)}", parseError)
                 throw ApiException(
                     "پاسخ سرور JSON معتبر نیست (HTTP $status، $contentType): $preview",
                     status
@@ -252,6 +252,7 @@ class CustomerActivity : Activity() {
             }
 
             if (!json.has("ok")) {
+                Log.w("AHMADI_NET_API", "Missing ok field; raw response: ${rawBody.take(300)}")
                 throw ApiException(
                     "پاسخ سرور فیلد ok ندارد (HTTP $status). پاسخ: ${rawBody.take(300)}",
                     status
@@ -259,6 +260,7 @@ class CustomerActivity : Activity() {
             }
 
             if (!json.optBoolean("ok", false)) {
+                Log.w("AHMADI_NET_API", "API returned ok=false; raw response: ${rawBody.take(300)}")
                 throw ApiException(
                     json.optString("error").ifBlank {
                         "سرور درخواست را نپذیرفت (HTTP $status). پاسخ: ${rawBody.take(300)}"

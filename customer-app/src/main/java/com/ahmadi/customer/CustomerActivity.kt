@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -215,14 +216,57 @@ class CustomerActivity : Activity() {
             if (!token.isNullOrBlank()) setRequestProperty("Authorization", "Bearer $token")
         }
         try {
-            if (body != null) connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            val json = try { JSONObject(text) } catch (_: Exception) { JSONObject() }
-            if (status !in 200..299 || !json.optBoolean("ok", false)) {
-                throw ApiException(json.optString("error").ifBlank { "خطای سرور ($status)" }, status)
+            if (body != null) connection.outputStream.use {
+                it.write(body.toString().toByteArray(Charsets.UTF_8))
             }
+
+            val status = connection.responseCode
+            val contentType = connection.contentType ?: "(نامشخص)"
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val rawBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+
+            // ثبت پاسخ خام برای عیب‌یابی؛ رمز و توکن درخواست ثبت نمی‌شود.
+            Log.d("AHMADI_NET_API", "$method $path | HTTP $status | Content-Type: $contentType")
+            Log.d("AHMADI_NET_API", "Raw response: ${rawBody.take(2000)}")
+
+            if (rawBody.isBlank()) {
+                throw ApiException("پاسخ سرور خالی است (HTTP $status، $contentType).", status)
+            }
+
+            val json = try {
+                JSONObject(rawBody)
+            } catch (parseError: Exception) {
+                val preview = rawBody.take(300).replace("\\n", " ").replace("\\r", " ")
+                Log.e("AHMADI_NET_API", "JSON parse failed for $path", parseError)
+                throw ApiException(
+                    "پاسخ سرور JSON معتبر نیست (HTTP $status، $contentType): $preview",
+                    status
+                )
+            }
+
+            if (status !in 200..299) {
+                throw ApiException(
+                    json.optString("error").ifBlank { "خطای سرور (HTTP $status)." },
+                    status
+                )
+            }
+
+            if (!json.has("ok")) {
+                throw ApiException(
+                    "پاسخ سرور فیلد ok ندارد (HTTP $status). پاسخ: ${rawBody.take(300)}",
+                    status
+                )
+            }
+
+            if (!json.optBoolean("ok", false)) {
+                throw ApiException(
+                    json.optString("error").ifBlank {
+                        "سرور درخواست را نپذیرفت (HTTP $status). پاسخ: ${rawBody.take(300)}"
+                    },
+                    status
+                )
+            }
+
             return json
         } finally {
             connection.disconnect()

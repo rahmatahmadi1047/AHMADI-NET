@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Check Worker JavaScript and config
         run: |
-          node --check cloudflare-worker/src/index.js
+          node --input-type=module --check < cloudflare-worker/src/index.js
           node -e "JSON.parse(require('fs').readFileSync('cloudflare-worker/wrangler.jsonc', 'utf8'))"
       - name: Set up JDK 17
         uses: actions/setup-java@v4

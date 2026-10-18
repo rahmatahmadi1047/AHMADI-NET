@@ -161,10 +161,13 @@ function validateUsername(username) {
 async function readCustomer(env, username, suppliedPassword = null) {
   const client = await routerClient(env);
   try {
+    const properties = suppliedPassword !== null
+      ? ".proplist=name,password,profile,uptime,bytes-in,bytes-out,limit-bytes-total,disabled"
+      : ".proplist=name,profile,uptime,bytes-in,bytes-out,limit-bytes-total,disabled";
     const users = await client.command([
       "/ip/hotspot/user/print",
       `?name=${username}`,
-      ".proplist=name,password,profile,uptime,bytes-in,bytes-out,limit-bytes-total,disabled",
+      properties,
     ]);
     const user = users.find((item) => item.name === username);
     if (!user) return { invalid: true };

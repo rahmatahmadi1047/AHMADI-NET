@@ -1,5 +1,3 @@
-import { } from "cloudflare:workers";
-
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 

@@ -218,7 +218,7 @@ class CustomerActivity : Activity() {
             if (body != null) connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val text = stream?.bufferedReader(Charsets.UTF_8)?.use(BufferedReader::readText).orEmpty()
+            val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             val json = try { JSONObject(text) } catch (_: Exception) { JSONObject() }
             if (status !in 200..299 || !json.optBoolean("ok", false)) {
                 throw ApiException(json.optString("error").ifBlank { "خطای سرور ($status)" }, status)

@@ -27,7 +27,7 @@ No customer password is stored or returned by the Worker. Session tokens expire 
    npx wrangler secret put SESSION_SECRET
    npx wrangler deploy
    ```
-6. Confirm the deployed Worker name/URL matches `https://my-ahmadinet.workers.dev`. Do not paste secrets into chat, source code, or GitHub.
+6. Confirm the deployed Worker name/URL matches `https://ahmadinet.rahmat-ahmadi1047.workers.dev`. Do not paste secrets into chat, source code, or GitHub.
 
 ## MikroTik permissions and security
 

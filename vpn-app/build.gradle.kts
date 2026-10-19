@@ -24,11 +24,7 @@ android {
 }
 
 dependencies {
-    // WireGuard engine (working integration already present in MainActivity).
+    // Keep only the WireGuard engine; unused OpenVPN and sing-box engines were removed to reduce APK size.
     implementation("com.wireguard.android:tunnel:1.0.20260102")
-    // sing-box native core: supports Shadowsocks and VLESS-family outbounds; Android VpnService bridge still needs wiring.
-    implementation("com.github.singbox-android:libbox:1.14.0")
-    // OpenVPN Android engine library; runtime profile/service integration still needs wiring.
-    implementation("io.github.tim06:openvpn:1.1.3")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

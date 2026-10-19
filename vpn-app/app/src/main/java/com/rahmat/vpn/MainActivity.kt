@@ -59,7 +59,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private val statsRunnable = object : Runnable {
+    private val statsRunnable: Runnable = object : Runnable {
         override fun run() {
             if (!connected) return
             executor.execute {

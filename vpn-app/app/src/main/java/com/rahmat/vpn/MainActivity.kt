@@ -41,7 +41,9 @@ class MainActivity : Activity() {
     private var sessionStartedAt = 0L
     private var lastRxBytes = 0L
     private var lastTxBytes = 0L
+    private var lastStatsAtMs = 0L
     private val requestVpnPermission = 501
+    private val requestConfigFile = 502
 
     private val tunnel = object : Tunnel {
         override fun getName(): String = "vpn"
@@ -69,10 +71,13 @@ class MainActivity : Activity() {
                     val tx = stats.totalTx()
                     runOnUiThread {
                         if (!connected) return@runOnUiThread
-                        val rxRate = (rx - lastRxBytes).coerceAtLeast(0L)
-                        val txRate = (tx - lastTxBytes).coerceAtLeast(0L)
+                        val now = SystemClock.elapsedRealtime()
+                        val elapsedMs = (now - lastStatsAtMs).coerceAtLeast(1L)
+                        val rxRate = ((rx - lastRxBytes).coerceAtLeast(0L) * 1000L) / elapsedMs
+                        val txRate = ((tx - lastTxBytes).coerceAtLeast(0L) * 1000L) / elapsedMs
                         lastRxBytes = rx
                         lastTxBytes = tx
+                        lastStatsAtMs = now
                         downloadSpeedView.text = "سرعت دانلود: ${formatRate(rxRate)}"
                         uploadSpeedView.text = "سرعت آپلود: ${formatRate(txRate)}"
                         downloadedView.text = "حجم دانلود: ${formatBytes(rx)}"
@@ -209,6 +214,20 @@ class MainActivity : Activity() {
         content.addView(uploadedView)
         content.addView(durationView)
         content.addView(configLabel)
+        val importConfigButton = Button(this).apply {
+            text = "وارد کردن فایل کانفیگ (.conf)"
+            isAllCaps = false
+            setOnClickListener {
+                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                }
+                startActivityForResult(picker, requestConfigFile)
+            }
+        }
+        content.addView(importConfigButton, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
         content.addView(configInput, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 300
         ))
@@ -240,6 +259,20 @@ class MainActivity : Activity() {
         if (requestCode == requestVpnPermission) {
             if (resultCode == Activity.RESULT_OK) startWireGuard(configInput.text.toString().trim())
             else status.text = "اجازه VPN داده نشد"
+        } else if (requestCode == requestConfigFile && resultCode == Activity.RESULT_OK) {
+            val uri = data?.data ?: return
+            try {
+                val stream = contentResolver.openInputStream(uri)
+                val importedText = stream?.bufferedReader()?.use { it.readText() }
+                if (importedText.isNullOrBlank()) {
+                    status.text = "فایل خالی است یا خوانده نشد"
+                } else {
+                    configInput.setText(importedText)
+                    status.text = "کانفیگ وارد شد؛ برای اتصال دکمه اتصال را بزن"
+                }
+            } catch (_: Exception) {
+                status.text = "خواندن فایل ناموفق بود؛ فایل .conf را بررسی کن"
+            }
         }
     }
 
@@ -262,6 +295,7 @@ class MainActivity : Activity() {
                     uploadedView.text = "حجم آپلود: ${formatBytes(initialStats.totalTx())}"
                     lastRxBytes = initialStats.totalRx()
                     lastTxBytes = initialStats.totalTx()
+                    lastStatsAtMs = SystemClock.elapsedRealtime()
                     downloadSpeedView.text = "سرعت دانلود: 0 B/s"
                     uploadSpeedView.text = "سرعت آپلود: 0 B/s"
                     mainHandler.removeCallbacks(statsRunnable)

@@ -10,9 +10,9 @@ android {
     defaultConfig {
         applicationId = "com.ahmadi.vpn"
         minSdk = 24
-        targetSdk = 28
-        versionCode = 3
-        versionName = "0.2.1"
+        targetSdk = 34
+        versionCode = 4
+        versionName = "0.3.0"
     }
 
     compileOptions {
@@ -24,7 +24,7 @@ android {
 }
 
 dependencies {
-    // Keep only the WireGuard engine; unused OpenVPN and sing-box engines were removed to reduce APK size.
+    // WireGuard only; unused VPN engines are intentionally excluded.
     implementation("com.wireguard.android:tunnel:1.0.20260102")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

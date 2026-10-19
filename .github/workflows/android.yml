@@ -40,6 +40,7 @@ jobs:
           name: AHMADI-NET-and-AHMADI-VPN-debug-apks
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            customer-app/build/outputs/apk/debug/customer-app-debug.apk\n            vpn-app/build/outputs/apk/debug/vpn-app-debug.apk
+            customer-app/build/outputs/apk/debug/customer-app-debug.apk
+            vpn-app/build/outputs/apk/debug/vpn-app-debug.apk
           if-no-files-found: error
           retention-days: 14

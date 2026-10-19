@@ -1,7 +1,7 @@
 name: Android APK
 on:
   push:
-    branches: [main]
+    branches: [main, ahmadi-vpn-app]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -33,13 +33,13 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
       - name: Build debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :customer-app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :customer-app:assembleDebug :vpn-app:assembleDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AHMADI-NET-two-apps-debug-apks
+          name: AHMADI-NET-and-AHMADI-VPN-debug-apks
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            customer-app/build/outputs/apk/debug/customer-app-debug.apk
+            customer-app/build/outputs/apk/debug/customer-app-debug.apk\n            vpn-app/build/outputs/apk/debug/vpn-app-debug.apk
           if-no-files-found: error
           retention-days: 14

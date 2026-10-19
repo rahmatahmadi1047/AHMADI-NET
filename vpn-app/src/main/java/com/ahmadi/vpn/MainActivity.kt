@@ -147,7 +147,13 @@ class MainActivity : Activity() {
 
     private fun pasteConfig() {
         val input = EditText(this).apply {
-            hint = when (selectedProtocol) {\n                "WireGuard" -> "[Interface] و [Peer] کانفیگ WireGuard را اینجا بچسپان"\n                "OpenVPN" -> "محتوای فایل .ovpn را اینجا بچسپان"\n                "VLESS / V2Ray / Xray" -> "لینک vless:// یا vmess:// را بچسپان"\n                "Shadowsocks" -> "لینک ss:// را بچسپان"\n                else -> "کانفیگ خود را اینجا بچسپان"\n            }
+            hint = when (selectedProtocol) {
+                "WireGuard" -> "[Interface] و [Peer] کانفیگ WireGuard را اینجا بچسپان"
+                "OpenVPN" -> "محتوای فایل .ovpn را اینجا بچسپان"
+                "VLESS / V2Ray / Xray" -> "لینک vless:// یا vmess:// را بچسپان"
+                "Shadowsocks" -> "لینک ss:// را بچسپان"
+                else -> "کانفیگ خود را اینجا بچسپان"
+            }
             setTextColor(Color.BLACK)
             textSize = 13f
             minLines = 8
@@ -209,7 +215,12 @@ class MainActivity : Activity() {
             }
             return
         }
-        if (selectedProtocol != "WireGuard") {\n            showError("موتور اتصال $selectedProtocol هنوز آماده نیست؛ این نسخه فقط WireGuard را وصل می‌کند.")\n            return\n        }\n        if (configText.isNullOrBlank()) {\n            showError("اول کانفیگ WireGuard را وارد کن")
+        if (selectedProtocol != "WireGuard") {
+            showError("موتور اتصال $selectedProtocol هنوز آماده نیست؛ این نسخه فقط WireGuard را وصل می‌کند.")
+            return
+        }
+        if (configText.isNullOrBlank()) {
+            showError("اول کانفیگ WireGuard را وارد کن")
             return
         }
         val permissionIntent = VpnService.prepare(this)

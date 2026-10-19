@@ -2,7 +2,7 @@ name: VPN Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
     paths:
       - 'vpn-app/**'
       - '.github/workflows/vpn-android.yml'

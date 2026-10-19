@@ -155,40 +155,29 @@ class MainActivity : Activity() {
             topMargin = dp(22)
         })
 
-        // Prominent, clickable Telegram invitation for the user's channel.
-        val telegramCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            background = rounded(Color.rgb(16, 38, 62), 20)
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            isClickable = true
-            isFocusable = true
-            contentDescription = "بازکردن کانال تلگرام احمدی"
-            setOnClickListener { openTelegram() }
-        }
-        telegramCard.addView(TextView(this).apply {
-            text = "✈  کانال تلگرام احمدی"
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(telegramBlue)
-            gravity = Gravity.CENTER
-        })
-        telegramCard.addView(TextView(this).apply {
-            text = "برای خبرها و به‌روزرسانی‌ها عضو شوید"
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(0, dp(7), 0, dp(5))
-        })
-        telegramCard.addView(TextView(this).apply {
-            text = "t.me/ahmadi_up"
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(muted)
-            gravity = Gravity.CENTER
-        })
-        root.addView(telegramCard, LinearLayout.LayoutParams(-1, -2).apply {
+        // Separate Telegram channel and personal support links.
+        val channelCard = telegramLinkCard(
+            title = "✈  کانال تلگرام احمدی",
+            subtitle = "برای خبرها و به‌روزرسانی‌ها عضو شوید",
+            address = "t.me/ahmadi_up",
+            link = "https://t.me/ahmadi_up",
+            blue = telegramBlue,
+            muted = muted
+        )
+        root.addView(channelCard, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(22)
+        })
+
+        val supportCard = telegramLinkCard(
+            title = "✉  پشتیبانی برنامه",
+            subtitle = "برای پرسش و کمک دربارهٔ AHMADI VPN پیام بدهید",
+            address = "@Ahmadi_UP1",
+            link = "https://t.me/Ahmadi_UP1",
+            blue = mint,
+            muted = muted
+        )
+        root.addView(supportCard, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = dp(12)
         })
 
         root.addView(TextView(this).apply {
@@ -214,11 +203,52 @@ class MainActivity : Activity() {
             cornerRadius = dp(radiusDp).toFloat()
         }
 
-    private fun openTelegram() {
+    private fun telegramLinkCard(
+        title: String,
+        subtitle: String,
+        address: String,
+        link: String,
+        blue: Int,
+        muted: Int
+    ): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = rounded(Color.rgb(16, 38, 62), 20)
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            isClickable = true
+            isFocusable = true
+            contentDescription = title
+            setOnClickListener { openTelegramLink(link) }
+            addView(TextView(this@MainActivity).apply {
+                text = title
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(blue)
+                gravity = Gravity.CENTER
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = subtitle
+                textSize = 12f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setPadding(0, dp(7), 0, dp(5))
+            })
+            addView(TextView(this@MainActivity).apply {
+                text = address
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(muted)
+                gravity = Gravity.CENTER
+            })
+        }
+    }
+
+    private fun openTelegramLink(link: String) {
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/ahmadi_up")))
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)))
         } catch (e: Exception) {
-            showError("بازکردن تلگرام ممکن نشد. این لینک را باز کنید: https://t.me/ahmadi_up")
+            showError("بازکردن تلگرام ممکن نشد. لینک را در مرورگر باز کنید: $link")
         }
     }
 

@@ -1,24 +1,43 @@
 package com.ahmadi.vpn
 
 import android.app.Activity
-import android.os.Bundle
 import android.content.Intent
-import android.net.Uri
+import android.net.VpnService
+import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.*
 import android.graphics.Color
 import android.graphics.Typeface
+import com.wireguard.android.backend.GoBackend
+import com.wireguard.android.backend.Tunnel
+import com.wireguard.config.Config
+import java.io.BufferedReader
+import java.io.StringReader
+import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
-    private lateinit var details: TextView
-    private var selectedUri: Uri? = null
-    private var selectedType = "نامشخص"
-    private val pickFile = 1001
+    private lateinit var configInfo: TextView
+    private lateinit var connectButton: Button
+    private var configText: String? = null
+    private var connected = false
+    private val executor = Executors.newSingleThreadExecutor()
+    private lateinit var backend: GoBackend
+
+    private val tunnel = object : Tunnel {
+        override fun getName(): String = "AHMADI-VPN"
+        override fun onStateChange(newState: Tunnel.State) {
+            runOnUiThread {
+                connected = newState == Tunnel.State.UP
+                updateUi(if (connected) "متصل (WireGuard)" else "قطع")
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        backend = GoBackend(applicationContext)
         window.statusBarColor = Color.rgb(9, 23, 45)
         window.navigationBarColor = Color.rgb(9, 23, 45)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -29,110 +48,173 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(9, 23, 45))
         }
         root.addView(TextView(this).apply {
-            text = "AHMADI VPN"; textSize = 28f; setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+            text = "AHMADI VPN"
+            textSize = 28f
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
         })
         root.addView(TextView(this).apply {
-            text = "مدیریت کانفیگ‌های VPN"; textSize = 15f
-            setTextColor(Color.rgb(185, 204, 230)); gravity = Gravity.CENTER
+            text = "اتصال مستقیم WireGuard داخل برنامه"
+            textSize = 15f
+            setTextColor(Color.rgb(185, 204, 230))
+            gravity = Gravity.CENTER
             setPadding(0, 8, 0, 22)
         })
         status = TextView(this).apply {
-            text = "وضعیت: هنوز کانفیگی انتخاب نشده"; textSize = 16f
-            setTextColor(Color.WHITE); setPadding(14, 16, 14, 16)
+            text = "وضعیت: قطع"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            setPadding(14, 16, 14, 16)
             setBackgroundColor(Color.rgb(24, 43, 69))
         }
         root.addView(status, LinearLayout.LayoutParams(-1, -2))
-        details = TextView(this).apply {
-            text = "فرمت‌ها: OpenVPN (.ovpn)، WireGuard (.conf)، VLESS/V2Ray، Trojan و Shadowsocks"
-            textSize = 14f; setTextColor(Color.rgb(202, 216, 235)); setPadding(4, 18, 4, 18)
+        configInfo = TextView(this).apply {
+            text = "اول فایل WireGuard با پسوند .conf را وارد کن."
+            textSize = 14f
+            setTextColor(Color.rgb(202, 216, 235))
+            setPadding(4, 18, 4, 18)
         }
-        root.addView(details)
-        addButton(root, "انتخاب فایل کانفیگ", Color.rgb(0, 133, 112)) { chooseFile() }
-        addButton(root, "واردکردن لینک کانفیگ", Color.rgb(40, 94, 160)) { pasteLink() }
-        addButton(root, "بازکردن با برنامه VPN سازگار", Color.rgb(75, 83, 110)) { handoff() }
-        addButton(root, "راهنمای اتصال", Color.rgb(75, 83, 110)) { showEngines() }
+        root.addView(configInfo)
+        addButton(root, "انتخاب فایل WireGuard (.conf)", Color.rgb(0, 133, 112)) { chooseFile() }
+        addButton(root, "چسپاندن متن کانفیگ WireGuard", Color.rgb(40, 94, 160)) { pasteConfig() }
+        connectButton = addButton(root, "اتصال VPN", Color.rgb(0, 133, 112)) { toggleConnection() }
         root.addView(TextView(this).apply {
-            text = "توجه: این نسخه کانفیگ را به برنامهٔ موتور همان پروتکل می‌سپارد. موتورهای اتصال هنوز داخل خود AHMADI VPN ادغام نشده‌اند؛ برای اتصال باید کلاینت سازگار نصب باشد."
-            textSize = 12f; setTextColor(Color.rgb(255, 211, 130)); setPadding(4, 18, 4, 0)
+            text = "موتور WireGuard داخل برنامه است. برای اتصال به کانفیگ معتبر WireGuard نیاز داری؛ فایل‌های OpenVPN (.ovpn) و لینک‌های VLESS/Xray در این نسخه هنوز پشتیبانی مستقیم ندارند."
+            textSize = 12f
+            setTextColor(Color.rgb(255, 211, 130))
+            setPadding(4, 18, 4, 0)
         })
         setContentView(ScrollView(this).apply { addView(root) })
     }
 
-    private fun addButton(parent: LinearLayout, label: String, color: Int, action: () -> Unit) {
-        val b = Button(this).apply {
-            text = label; isAllCaps = false; textSize = 15f
-            setTextColor(Color.WHITE); setBackgroundColor(color); setOnClickListener { action() }
+    private fun addButton(parent: LinearLayout, label: String, color: Int, action: () -> Unit): Button {
+        val button = Button(this).apply {
+            text = label
+            isAllCaps = false
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setBackgroundColor(color)
+            setOnClickListener { action() }
         }
-        parent.addView(b, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10 })
+        parent.addView(button, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10 })
+        return button
     }
 
     private fun chooseFile() {
-        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE); type = "*/*"
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/*"
         }
-        startActivityForResult(i, pickFile)
+        startActivityForResult(intent, 1001)
     }
 
-    @Deprecated("Legacy activity result used for compatibility with minSdk 23")
+    @Deprecated("Legacy activity result used for compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == pickFile && resultCode == RESULT_OK) {
+        if (requestCode == 1001 && resultCode == RESULT_OK) {
             val uri = data?.data ?: return
-            selectedUri = uri
-            try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
-            val name = uri.lastPathSegment ?: "فایل انتخاب‌شده"
-            selectedType = detect(name, "")
-            status.text = "کانفیگ انتخاب شد: $selectedType"
-            details.text = "$name\nبرای اتصال، دکمهٔ بازکردن با برنامه سازگار را بزن."
+            try {
+                val text = contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    ?: throw IllegalArgumentException("فایل خوانده نشد")
+                setConfig(text)
+            } catch (e: Exception) {
+                showError("خواندن فایل ناموفق بود: ${e.message ?: "خطا"}")
+            }
+        } else if (requestCode == 1002) {
+            if (resultCode == RESULT_OK) startTunnel() else showError("اجازهٔ اتصال VPN داده نشد")
         }
     }
 
-    private fun detect(name: String, value: String): String {
-        val s = (name + " " + value).lowercase()
-        return when {
-            s.contains(".ovpn") -> "OpenVPN"
-            s.contains(".conf") -> "WireGuard یا کانفیگ متنی؛ محتوای فایل باید بررسی شود"
-            s.contains("vless://") || s.contains("vmess://") || s.contains("trojan://") || s.contains("ss://") -> "V2Ray/Xray یا Shadowsocks"
-            else -> "فرمت نامشخص؛ اتصال تضمین نیست"
-        }
-    }
-
-    private fun pasteLink() {
+    private fun pasteConfig() {
         val input = EditText(this).apply {
-            hint = "vless:// یا vmess:// یا trojan:// یا ss://"; setTextColor(Color.BLACK); textSize = 14f
+            hint = "[Interface] و [Peer] کانفیگ WireGuard را اینجا بچسپان"
+            setTextColor(Color.BLACK)
+            textSize = 13f
+            minLines = 8
+            gravity = Gravity.TOP
         }
-        android.app.AlertDialog.Builder(this).setTitle("لینک کانفیگ").setView(input)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("کانفیگ WireGuard")
+            .setView(input)
             .setNegativeButton("لغو", null)
-            .setPositiveButton("ثبت") { _, _ ->
-                val value = input.text.toString().trim()
-                if (value.isBlank()) return@setPositiveButton
-                selectedUri = Uri.parse(value)
-                selectedType = detect("", value)
-                details.text = value.take(220)
-                status.text = "نوع کانفیگ: $selectedType"
-            }.show()
+            .setPositiveButton("ذخیره") { _, _ -> setConfig(input.text.toString()) }
+            .show()
     }
 
-    private fun handoff() {
-        val uri = selectedUri
-        if (uri == null) {
-            Toast.makeText(this, "اول یک فایل یا لینک کانفیگ انتخاب کن", Toast.LENGTH_LONG).show()
+    private fun setConfig(text: String) {
+        try {
+            if (!text.contains("[Interface]", ignoreCase = true) ||
+                !text.contains("[Peer]", ignoreCase = true)) {
+                throw IllegalArgumentException("این فایل کانفیگ WireGuard نیست؛ باید [Interface] و [Peer] داشته باشد.")
+            }
+            // Parse before accepting the config, so malformed files are rejected early.
+            Config.parse(BufferedReader(StringReader(text)))
+            configText = text
+            configInfo.text = "کانفیگ WireGuard معتبر از نظر قالب وارد شد. سرور و کلیدها هنگام اتصال بررسی می‌شوند."
+            status.text = "وضعیت: کانفیگ آماده"
+            Toast.makeText(this, "کانفیگ وارد شد", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            showError("کانفیگ معتبر نیست: ${e.message ?: "خطای قالب"}")
+        }
+    }
+
+    private fun toggleConnection() {
+        if (connected) {
+            status.text = "وضعیت: در حال قطع..."
+            executor.execute {
+                try {
+                    backend.setState(tunnel, Tunnel.State.DOWN, null)
+                    runOnUiThread { updateUi("قطع") }
+                } catch (e: Exception) {
+                    runOnUiThread { showError("قطع اتصال ناموفق بود: ${e.message ?: "خطا"}") }
+                }
+            }
             return
         }
-        val isLink = uri.scheme?.lowercase() in listOf("vless", "vmess", "trojan", "ss")
-        val intent = if (isLink) Intent(Intent.ACTION_VIEW, uri)
-                     else Intent(Intent.ACTION_VIEW).setDataAndType(uri, "*/*")
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        try { startActivity(Intent.createChooser(intent, "انتخاب برنامهٔ VPN برای $selectedType")) }
-        catch (_: Exception) {
-            Toast.makeText(this, "برنامهٔ سازگار پیدا نشد؛ موتور مناسب را نصب کن.", Toast.LENGTH_LONG).show()
+        if (configText.isNullOrBlank()) {
+            showError("اول کانفیگ WireGuard را وارد کن")
+            return
+        }
+        val permissionIntent = VpnService.prepare(this)
+        if (permissionIntent != null) startActivityForResult(permissionIntent, 1002) else startTunnel()
+    }
+
+    private fun startTunnel() {
+        val raw = configText ?: return
+        status.text = "وضعیت: در حال اتصال..."
+        connectButton.isEnabled = false
+        executor.execute {
+            try {
+                val config = Config.parse(BufferedReader(StringReader(raw)))
+                backend.setState(tunnel, Tunnel.State.UP, config)
+                runOnUiThread { updateUi("درخواست اتصال فرستاده شد") }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    connected = false
+                    updateUi("خطای اتصال")
+                    showError("اتصال ناموفق بود: ${e.message ?: "سرور یا کانفیگ را بررسی کن"}")
+                }
+            }
         }
     }
 
-    private fun showEngines() {
-        android.app.AlertDialog.Builder(this).setTitle("برنامه‌های موردنیاز")
-            .setMessage("OpenVPN (.ovpn): OpenVPN Connect یا کلاینت سازگار\nWireGuard (.conf): برنامهٔ رسمی WireGuard\nVLESS/V2Ray: کلاینت سازگار با Xray/V2Ray مثل v2rayNG\n\nپس از نصب کلاینت، کانفیگ را به آن بسپار و داخل کلاینت روی اتصال بزن.")
-            .setPositiveButton("فهمیدم", null).show()
+    private fun updateUi(message: String) {
+        status.text = "وضعیت: $message"
+        connectButton.text = if (connected) "قطع VPN" else "اتصال VPN"
+        connectButton.isEnabled = true
+    }
+
+    private fun showError(message: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("AHMADI VPN")
+            .setMessage(message)
+            .setPositiveButton("باشه", null)
+            .show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        executor.shutdown()
     }
 }

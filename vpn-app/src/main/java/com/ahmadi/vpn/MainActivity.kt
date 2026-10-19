@@ -3,6 +3,7 @@ package com.ahmadi.vpn
 import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
+import android.net.Uri
 import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
@@ -47,6 +48,7 @@ class MainActivity : Activity() {
         val panel = Color.rgb(19, 31, 56)
         val mint = Color.rgb(40, 220, 174)
         val muted = Color.rgb(164, 181, 208)
+        val telegramBlue = Color.rgb(42, 171, 238)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -56,17 +58,20 @@ class MainActivity : Activity() {
         }
 
         val topSpace = View(this)
-        root.addView(topSpace, LinearLayout.LayoutParams(1, dp(24)))
+        root.addView(topSpace, LinearLayout.LayoutParams(1, dp(12)))
 
+        // Custom AHMADI VPN badge: brand letter plus VPN shield-style check mark.
         val logo = TextView(this).apply {
-            text = "A"
-            textSize = 34f
+            text = "A✓"
+            textSize = 30f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setTextColor(navy)
-            background = rounded(mint, 28)
+            background = rounded(mint, 24)
+            elevation = dp(5).toFloat()
+            contentDescription = "لوگوی AHMADI VPN"
         }
-        root.addView(logo, LinearLayout.LayoutParams(dp(76), dp(76)))
+        root.addView(logo, LinearLayout.LayoutParams(dp(82), dp(82)))
 
         root.addView(TextView(this).apply {
             text = "AHMADI VPN"
@@ -79,14 +84,14 @@ class MainActivity : Activity() {
         })
 
         root.addView(TextView(this).apply {
-            text = "اتصال امن با WireGuard"
+            text = "اتصال با WireGuard"
             textSize = 15f
             setTextColor(muted)
             gravity = Gravity.CENTER
         })
 
         val spacer = View(this)
-        root.addView(spacer, LinearLayout.LayoutParams(1, dp(44)))
+        root.addView(spacer, LinearLayout.LayoutParams(1, dp(28)))
 
         val statusCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -126,7 +131,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
         })
         configInfo = TextView(this).apply {
-            text = "برای واردکردن فایل ‎.conf‎ اینجا بزنید"
+            text = "برای واردکردن فایل .conf اینجا بزنید"
             textSize = 12f
             setTextColor(muted)
             setPadding(0, dp(8), 0, 0)
@@ -150,12 +155,48 @@ class MainActivity : Activity() {
             topMargin = dp(22)
         })
 
+        // Prominent, clickable Telegram invitation for the user's channel.
+        val telegramCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = rounded(Color.rgb(16, 38, 62), 20)
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            isClickable = true
+            isFocusable = true
+            contentDescription = "بازکردن کانال تلگرام احمدی"
+            setOnClickListener { openTelegram() }
+        }
+        telegramCard.addView(TextView(this).apply {
+            text = "✈  کانال تلگرام احمدی"
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(telegramBlue)
+            gravity = Gravity.CENTER
+        })
+        telegramCard.addView(TextView(this).apply {
+            text = "برای خبرها و به‌روزرسانی‌ها عضو شوید"
+            textSize = 12f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(7), 0, dp(5))
+        })
+        telegramCard.addView(TextView(this).apply {
+            text = "t.me/ahmadi_up"
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(muted)
+            gravity = Gravity.CENTER
+        })
+        root.addView(telegramCard, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = dp(22)
+        })
+
         root.addView(TextView(this).apply {
-            text = "فقط WireGuard  •  ساده، سریع و امن"
+            text = "فقط WireGuard  •  ساده و کاربردی"
             textSize = 12f
             setTextColor(muted)
             gravity = Gravity.CENTER
-            setPadding(0, dp(28), 0, 0)
+            setPadding(0, dp(20), 0, 0)
         })
 
         setContentView(ScrollView(this).apply {
@@ -172,6 +213,14 @@ class MainActivity : Activity() {
             setColor(color)
             cornerRadius = dp(radiusDp).toFloat()
         }
+
+    private fun openTelegram() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/ahmadi_up")))
+        } catch (e: Exception) {
+            showError("بازکردن تلگرام ممکن نشد. این لینک را باز کنید: https://t.me/ahmadi_up")
+        }
+    }
 
     private fun showConfigOptions() {
         val options = arrayOf("انتخاب فایل کانفیگ (.conf)", "چسپاندن متن کانفیگ")

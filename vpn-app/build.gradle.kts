@@ -15,6 +15,29 @@ android {
         versionName = "0.3.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = System.getenv("AHMADI_KEYSTORE_PATH")
+            val storePass = System.getenv("AHMADI_KEYSTORE_PASSWORD")
+            val alias = System.getenv("AHMADI_KEY_ALIAS")
+            val keyPass = System.getenv("AHMADI_KEY_PASSWORD")
+            if (!storePath.isNullOrBlank() && !storePass.isNullOrBlank() &&
+                !alias.isNullOrBlank() && !keyPass.isNullOrBlank()) {
+                storeFile = file(storePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

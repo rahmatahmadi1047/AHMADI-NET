@@ -32,15 +32,36 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
-      - name: Build debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :customer-app:assembleDebug :vpn-app:assembleDebug
-      - name: Upload APK
+      - name: Prepare Release signing key
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.AHMADI_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.AHMADI_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AHMADI_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AHMADI_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "Missing Release signing secrets. Add AHMADI_KEYSTORE_BASE64, AHMADI_KEYSTORE_PASSWORD, AHMADI_KEY_ALIAS, and AHMADI_KEY_PASSWORD in GitHub Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ahmadi-release.jks"
+          echo "AHMADI_KEYSTORE_PATH=$RUNNER_TEMP/ahmadi-release.jks" >> "$GITHUB_ENV"
+          echo "AHMADI_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "AHMADI_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "AHMADI_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Build debug APKs for other apps
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :customer-app:assembleDebug
+      - name: Build signed AHMADI VPN Release APK
+        if: github.event_name != 'pull_request'
+        run: gradle --no-daemon --stacktrace :vpn-app:assembleRelease
+      - name: Upload APK artifacts
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: AHMADI-NET-and-AHMADI-VPN-debug-apks
+          name: AHMADI-NET-and-AHMADI-VPN-release-apks
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             customer-app/build/outputs/apk/debug/customer-app-debug.apk
-            vpn-app/build/outputs/apk/debug/vpn-app-debug.apk
+            vpn-app/build/outputs/apk/release/vpn-app-release.apk
           if-no-files-found: error
           retention-days: 14

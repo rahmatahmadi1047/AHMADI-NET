@@ -10,7 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
     }
 }
 rootProject.name = "AHMADI-NET"
-include(":app", ":customer-app")
+include(":app", ":customer-app", ":vpn-app")

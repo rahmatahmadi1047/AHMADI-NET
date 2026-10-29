@@ -134,7 +134,7 @@ function parseRecord(sentence) {
 async function routerClient(env) {
   if (!env.PRIVATE_NETWORK) throw new Error("VPC_BINDING_MISSING");
   if (!env.ROUTER_API_USER || !env.ROUTER_API_PASSWORD) throw new Error("ROUTER_SECRET_MISSING");
-  const host = env.ROUTER_HOST || "172.16.1.1";
+  const host = env.ROUTER_HOST || "192.168.60.1";
   const port = Number(env.ROUTER_PORT || "8728");
   const socket = await env.PRIVATE_NETWORK.connect(`${host}:${port}`);
   const client = new ApiStream(socket);

@@ -46,3 +46,18 @@ Before publishing to customers, configure a Cloudflare rate-limiting rule for `P
 ## Data limits
 
 RouterOS Hotspot local users provide byte counters and optionally `limit-bytes-total`. The Worker shows remaining data only when a total byte limit is set. Expiry dates are not fabricated; they are not shown unless a real expiry field is added to the source system.
+
+## Remote Hotspot admin panel
+
+The protected admin UI is available at `/admin` after deploying the updated Worker. It creates a new local Hotspot user only; it refuses duplicate usernames and does not edit or delete existing users.
+
+Before using it:
+1. In Cloudflare Worker settings, create a secret named `ADMIN_TOKEN` with at least 32 random characters. Do not put the token in GitHub or share it in chat.
+2. Ensure `PRIVATE_NETWORK`, `ROUTER_HOST`, `ROUTER_PORT`, `ROUTER_API_USER`, and `ROUTER_API_PASSWORD` are correctly configured. The default router target is `172.16.1.1:8728`.
+3. Open `https://ahmadinet.rahmat-ahmadi1047.workers.dev/admin`, enter the token, load the existing Hotspot profiles, and create one test user with a unique name.
+4. Verify the test user appears under WinBox `IP → Hotspot → Users`. Do not test by overwriting an existing account.
+
+The admin token is requested for each browser session and is not saved by the page. Use a strong unique token and enable Cloudflare rate limiting / Access protections as appropriate. The API must only be reachable through the private VPC/tunnel route; never expose RouterOS TCP 8728 publicly.
+
+Important: this first admin-panel revision creates users and assigns an existing profile. It does **not** by itself implement a calendar expiry of 30 days from first login. That needs a separate, tested expiry mechanism before being used for paid packages.
+

@@ -276,6 +276,50 @@ async function readJson(request) {
   return JSON.parse(text);
 }
 
+
+function adminAuthorized(request, env) {
+  const configured = env.ADMIN_TOKEN;
+  if (typeof configured !== "string" || configured.length < 32) return false;
+  const auth = request.headers.get("authorization") || "";
+  return auth === `Bearer ${configured}`;
+}
+
+const adminHtml = `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>مدیریت یوزرهای احمدی‌نت</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#10172a;color:#f5f7ff;padding:20px}
+main{max-width:560px;margin:24px auto;background:#18233d;border:1px solid #34415f;border-radius:18px;padding:22px}
+h1{font-size:22px;margin-top:0}p{line-height:1.8;color:#c8d2e9}.field{display:block;margin:14px 0}
+label{display:block;margin-bottom:7px;font-size:14px}input,select,button{width:100%;padding:13px;border-radius:10px;border:1px solid #52617f;font:inherit}
+input,select{background:#0d1425;color:#fff}button{background:#7867f5;color:white;border:0;font-weight:bold;cursor:pointer;margin-top:10px}
+button:disabled{opacity:.6}#msg{padding:12px;border-radius:10px;margin-top:14px;white-space:pre-wrap;display:none}
+.note{font-size:12px;color:#bac7df}.danger{color:#ffccbf}
+</style></head><body><main>
+<h1>مدیریت یوزرهای احمدی‌نت</h1>
+<p>با این پنل یوزر Hotspot جدید می‌سازی. کاربران موجود تغییر نمی‌کنند. رمز مدیریت فقط برای این درخواست استفاده می‌شود و در این صفحه ذخیره نمی‌شود.</p>
+<form id="f">
+<div class="field"><label for="token">رمز امن پنل (ADMIN_TOKEN)</label><input id="token" type="password" autocomplete="off" required minlength="32"></div>
+<div class="field"><label for="username">نام کاربری جدید</label><input id="username" required maxlength="64" pattern="[A-Za-z0-9_.@-]+" autocomplete="off"></div>
+<div class="field"><label for="password">رمز عبور مشتری</label><input id="password" type="text" required maxlength="128" autocomplete="off"></div>
+<div class="field"><label for="profile">پروفایل Hotspot موجود</label><select id="profile" required><option value="">ابتدا رمز پنل را وارد و پروفایل‌ها را بارگیری کنید</option></select></div>
+<button id="load" type="button">بارگیری پروفایل‌ها از روتر</button>
+<button id="create" type="submit">ساخت یوزر جدید</button>
+</form>
+<div id="msg" role="status"></div>
+<p class="note danger">این پنل فقط یوزر را ایجاد می‌کند. اعتبار تقویمی ۳۰ روز از اولین ورود باید جداگانه تنظیم و آزمایش شود؛ انتخاب یک پروفایل به‌تنهایی آن را تضمین نمی‌کند.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function message(t,ok=false){const m=$("msg");m.style.display="block";m.textContent=t;m.style.background=ok?"#153d34":"#512d35";}
+function headers(){return {"content-type":"application/json","authorization":"Bearer "+$("token").value};}
+$("load").addEventListener("click",async()=>{if($("token").value.length<32){message("رمز مدیریت باید حداقل ۳۲ نویسه باشد.");return;} $("load").disabled=true;try{const r=await fetch("/api/admin/profiles",{headers:headers()});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"بارگیری پروفایل‌ها ناموفق بود.");const s=$("profile");s.replaceChildren();for(const p of d.profiles){const o=document.createElement("option");o.value=p.name;o.textContent=p.name;s.appendChild(o);}if(!d.profiles.length)message("هیچ پروفایلی از روتر دریافت نشد.");else message("پروفایل‌ها از روتر بارگیری شد.",true);}catch(e){message(e.message||"ارتباط با Worker یا روتر برقرار نشد.");}finally{$("load").disabled=false;}});
+$("f").addEventListener("submit",async e=>{e.preventDefault();$("create").disabled=true;try{const r=await fetch("/api/admin/users",{method:"POST",headers:headers(),body:JSON.stringify({username:$("username").value.trim(),password:$("password").value,profile:$("profile").value})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"ساخت یوزر انجام نشد.");message("یوزر جدید ساخته شد: "+d.username+"\nپروفایل: "+d.profile,true);$("username").value="";$("password").value="";}catch(e){message(e.message||"ارتباط با Worker یا روتر برقرار نشد.");}finally{$("create").disabled=false;}});
+</script></body></html>`;
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -302,6 +346,84 @@ export default {
         message: "Cloudflare Worker is running.",
         mode: "worker-ready",
       });
+    }
+
+
+    if (url.pathname === "/admin" && request.method === "GET") {
+      return new Response(adminHtml, {
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+          "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+        },
+      });
+    }
+
+    if (url.pathname === "/api/admin/profiles" && request.method === "GET") {
+      if (!adminAuthorized(request, env)) return json({ ok: false, error: "رمز مدیریت نامعتبر است یا تنظیم نشده." }, 401);
+      try {
+        const client = await routerClient(env);
+        try {
+          const profiles = await client.command([
+            "/ip/hotspot/user/profile/print",
+            ".proplist=name",
+          ]);
+          return json({ ok: true, profiles: profiles.filter((p) => typeof p.name === "string").map((p) => ({ name: p.name })) });
+        } finally {
+          await client.close();
+        }
+      } catch {
+        return json({ ok: false, error: "اتصال امن به روتر برقرار نیست." }, 502);
+      }
+    }
+
+    if (url.pathname === "/api/admin/users" && request.method === "POST") {
+      if (!adminAuthorized(request, env)) return json({ ok: false, error: "رمز مدیریت نامعتبر است یا تنظیم نشده." }, 401);
+      let body;
+      try {
+        body = await readJson(request);
+      } catch {
+        return json({ ok: false, error: "درخواست نامعتبر است." }, 400);
+      }
+      const username = typeof body.username === "string" ? body.username.trim() : "";
+      const password = typeof body.password === "string" ? body.password : "";
+      const profile = typeof body.profile === "string" ? body.profile : "";
+      if (!validateUsername(username) || password.length < 1 || password.length > 128 || !validateUsername(profile)) {
+        return json({ ok: false, error: "نام کاربری، رمز یا پروفایل معتبر نیست." }, 400);
+      }
+      try {
+        const client = await routerClient(env);
+        try {
+          const existing = await client.command([
+            "/ip/hotspot/user/print",
+            `?name=${username}`,
+            ".proplist=name",
+          ]);
+          if (existing.some((item) => item.name === username)) {
+            return json({ ok: false, error: "این نام کاربری از قبل وجود دارد؛ کاربر قبلی تغییر داده نشد." }, 409);
+          }
+          const profiles = await client.command([
+            "/ip/hotspot/user/profile/print",
+            `?name=${profile}`,
+            ".proplist=name",
+          ]);
+          if (!profiles.some((item) => item.name === profile)) {
+            return json({ ok: false, error: "پروفایل انتخاب‌شده در روتر وجود ندارد." }, 400);
+          }
+          await client.command([
+            "/ip/hotspot/user/add",
+            `=name=${username}`,
+            `=password=${password}`,
+            `=profile=${profile}`,
+          ]);
+          return json({ ok: true, username, profile, message: "یوزر جدید ایجاد شد." }, 201);
+        } finally {
+          await client.close();
+        }
+      } catch {
+        return json({ ok: false, error: "ساخت یوزر انجام نشد؛ اتصال و دسترسی API روتر را بررسی کنید." }, 502);
+      }
     }
 
     if (url.pathname === "/api/login" && request.method === "POST") {

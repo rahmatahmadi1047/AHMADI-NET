@@ -1,63 +1,58 @@
 # AHMADI-NET Cloudflare Worker
 
-This Worker implements a real RouterOS Hotspot customer-account API. It is not connected until the Cloudflare VPC route, tunnel connector, and Worker secrets are configured.
+This Worker provides the customer account API and a restricted seller panel for the second MikroTik RB951 router.
 
 ## Routes
 
-- `GET /health` — confirms the Worker is deployed only; it does **not** claim the router is reachable.
-- `POST /api/login` — body `{"username":"...","password":"..."}`; verifies a local Hotspot user's password against RouterOS and returns a short-lived signed session plus that user's account data.
-- `GET /api/account` — requires `Authorization: Bearer <session>`; returns only the account named in the signed session.
+- GET /health — confirms the Worker is deployed; it does not prove router connectivity.
+- POST /api/login and GET /api/account — customer account status.
+- GET /admin — Persian RTL seller panel for Hotspot and User Manager users.
+- GET /api/admin/profiles?type=hotspot|usermanager — lists existing profiles only.
+- GET /api/admin/users?type=hotspot|usermanager — lists accounts.
+- POST /api/admin/users — creates a user in the selected system and assigns an existing profile.
+- DELETE /api/admin/users?type=hotspot|usermanager&username=... — deletes only the selected user. For Hotspot, active sessions for that user are disconnected first. For User Manager, profile assignments belonging to that user are removed first.
 
-No customer password is stored or returned by the Worker. Session tokens expire after one hour.
+The seller panel does not expose commands for changing router settings, profiles, limitations, firewall, DNS, wireless, IP addressing, or router administrator accounts. It refuses duplicate usernames and never edits an existing account.
 
-## Required Cloudflare configuration
+## RB951 and Cloudflare configuration
 
-1. Create a Cloudflare Tunnel connector on a device that can route to `172.16.1.1`. A tunnel that exists only in the dashboard is not running. The connector must remain online.
-2. In Workers VPC, configure a VPC Network route that reaches the connector/tunnel and the private subnet containing `172.16.1.1`. Bind this Worker to that VPC Network. The included `wrangler.jsonc` uses `cf1:network`; adjust it to the actual network ID if your Cloudflare account requires a specific network.
-3. Ensure the connector device can reach `172.16.1.1:8728` over the LAN/VPN. A Worker cannot reach this RFC1918 address without the private route.
-4. Set the following Worker secrets from a trusted terminal:
-   - `ROUTER_API_USER`: dedicated MikroTik API account.
-   - `ROUTER_API_PASSWORD`: that account's password.
-   - `SESSION_SECRET`: at least 32 random characters; use a unique random secret.
-5. Deploy with Wrangler from this folder:
-   ```sh
-   npm install --save-dev wrangler
-   npx wrangler secret put ROUTER_API_USER
-   npx wrangler secret put ROUTER_API_PASSWORD
-   npx wrangler secret put SESSION_SECRET
-   npx wrangler deploy
-   ```
-6. Confirm the deployed Worker name/URL matches `https://ahmadinet.rahmat-ahmadi1047.workers.dev`. Do not paste secrets into chat, source code, or GitHub.
+The intended router target is 192.168.60.1:8728, not the main router at 172.16.1.1.
 
-## MikroTik permissions and security
+1. Confirm the Cloudflare Tunnel connector is running on a device that can route to the RB951 subnet.
+2. Confirm the Cloudflare VPC route includes 192.168.60.0/24 and the connector can reach 192.168.60.1:8728.
+3. In the Worker settings, set ROUTER_HOST=192.168.60.1 and ROUTER_PORT=8728. A dashboard variable can override the value in wrangler.jsonc; verify the deployed Worker variable too.
+4. Keep the existing PRIVATE_NETWORK VPC binding and ensure it points at the connected tunnel network.
+5. Create or retain the Worker secrets ROUTER_API_USER and ROUTER_API_PASSWORD for a dedicated API-only MikroTik account.
+6. Create the Worker secret ADMIN_TOKEN with at least 32 random characters. Do not place this token in source code, GitHub, screenshots, or chat. The same token is entered at runtime in the website or Android app; it is not hard-coded into the APK.
+7. Deploy the Worker from this folder after checking the Worker name and VPC binding against the Cloudflare dashboard.
 
-The current implementation authenticates local Hotspot users by reading the password field for the requested username. On RouterOS this may require the API service account to have the `sensitive` policy in addition to `read,api`. This is a security trade-off: such an account may be able to read sensitive user fields. Use a dedicated account, restrict API service/firewall access to the private connector path, and never expose TCP 8728 publicly. If you do not accept this permission, do not deploy this password-check approach; use a separate RADIUS authentication integration instead.
+The existing Worker URL is expected to be https://ahmadinet.rahmat-ahmadi1047.workers.dev; open /admin after deployment.
 
-Create a dedicated group/user in WinBox and give only the required policies. Limit `/ip service api` and firewall access to the connector's private source address/subnet where possible. Never use the router's full administrator credentials in the Worker.
+## MikroTik API account security
 
-## Availability limitation
+The Worker uses a fixed allow-list of RouterOS commands for listing profiles/users, adding users, deleting users, and removing a user's own Hotspot active sessions or User Manager profile assignments. There is no endpoint that accepts arbitrary RouterOS commands.
 
-A Cloudflare Tunnel connector must run on an always-on device that can reach the router. If your laptop is the only device in the router LAN and is switched off, the route will stop working. For an always-online setup without your laptop, use a small always-on device on the LAN or a VPS connected to the MikroTik by a site-to-site WireGuard VPN; a VPS alone cannot reach `172.16.1.1` without that private route.
+The RouterOS API account still needs read/write/API permissions for these operations. RouterOS does not provide a built-in per-menu write policy for ordinary user groups, so this account could have broad write capability if its credentials were stolen and the API were reachable directly. Therefore:
+- use a dedicated API-only account, not the router's full administrator account;
+- do not give the seller the RouterOS API username/password;
+- restrict /ip service api and firewall access to the trusted private tunnel/connector source wherever possible;
+- never expose TCP 8728 publicly;
+- protect the Worker with the long random ADMIN_TOKEN and Cloudflare rate limiting / Access controls.
 
-## Rate limiting
+The seller token can perform only the allow-listed operations implemented by this Worker. It cannot directly log in to WinBox.
 
-Before publishing to customers, configure a Cloudflare rate-limiting rule for `POST /api/login` (for example, a conservative per-IP request limit) and review logs. The Worker deliberately does not implement a fake in-memory rate limiter because it would not be reliable across isolates. Use HTTPS only, and rotate any token/password previously pasted into chat.
+## User Manager behavior
 
-## Data limits
+User Manager users are created under /user-manager/user and assigned one of the already-existing profiles through /user-manager/user-profile. The panel never creates, edits, or deletes profiles or limitations. The existing profile's starts-when=first-auth, validity, and limitations remain responsible for activation and expiry.
 
-RouterOS Hotspot local users provide byte counters and optionally `limit-bytes-total`. The Worker shows remaining data only when a total byte limit is set. Expiry dates are not fabricated; they are not shown unless a real expiry field is added to the source system.
+Before issuing paid codes, test with one new test username and verify it appears in both the expected User Manager menu and the Hotspot authentication flow. Do not use an existing customer name for testing.
 
-## Remote Hotspot admin panel
+## Android app
 
-The protected admin UI is available at `/admin` after deploying the updated Worker. It creates a new local Hotspot user only; it refuses duplicate usernames and does not edit or delete existing users.
+The Android seller app is the admin-app Gradle module. It uses the same Worker endpoints as the website, asks the seller to enter ADMIN_TOKEN at runtime, and does not persist the token. GitHub Actions builds admin-app-debug.apk alongside the existing apps.
 
-Before using it:
-1. In Cloudflare Worker settings, create a secret named `ADMIN_TOKEN` with at least 32 random characters. Do not put the token in GitHub or share it in chat.
-2. Ensure `PRIVATE_NETWORK`, `ROUTER_HOST`, `ROUTER_PORT`, `ROUTER_API_USER`, and `ROUTER_API_PASSWORD` are correctly configured. Set `ROUTER_HOST=192.168.60.1` and `ROUTER_PORT=8728` to target the second RB951. This only works if the Cloudflare private-network route can reach that subnet through the main router; it has not been network-tested from this repository.
-3. Open `https://ahmadinet.rahmat-ahmadi1047.workers.dev/admin`, enter the token, load the existing Hotspot profiles, and create one test user with a unique name.
-4. Verify the test user appears under WinBox `IP → Hotspot → Users`. Do not test by overwriting an existing account.
+## Important operational notes
 
-The admin token is requested for each browser session and is not saved by the page. Use a strong unique token and enable Cloudflare rate limiting / Access protections as appropriate. The API must only be reachable through the private VPC/tunnel route; never expose RouterOS TCP 8728 publicly. Before deployment, confirm the private route reaches `192.168.60.1` and the RB951 firewall permits API traffic from the trusted private-network source only.
-
-Important: this first admin-panel revision creates users and assigns an existing profile. It does **not** by itself implement a calendar expiry of 30 days from first login. That needs a separate, tested expiry mechanism before being used for paid packages.
-
+- A healthy Worker /health response does not prove the VPC route or RouterOS API works.
+- The Cloudflare connector must remain online. If it is on a laptop that is switched off, remote management will stop.
+- This feature does not change any existing Hotspot users, User Manager profiles, limitations, or router settings.

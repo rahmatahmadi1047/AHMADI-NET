@@ -1,3 +1,4 @@
+import { handleAdminRequest } from "./admin.js";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -335,6 +336,8 @@ export default {
     }
 
     const url = new URL(request.url);
+    const adminResponse = await handleAdminRequest(request, env, routerClient);
+    if (adminResponse) return adminResponse;
 
     // Public status endpoint: the Android app expects every successful JSON
     // response to include ok: true.

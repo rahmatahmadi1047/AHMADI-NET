@@ -1,11 +1,11 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "my-ahmadinet",
+  "name": "ahmadinet",
   "main": "src/index.js",
   "compatibility_date": "2026-10-18",
   "workers_dev": true,
   "vars": {
-    "ROUTER_HOST": "172.16.1.1",
+    "ROUTER_HOST": "192.168.60.1",
     "ROUTER_PORT": "8728"
   },
   "vpc_networks": [

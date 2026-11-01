@@ -159,7 +159,7 @@ class AdminActivity : Activity() {
         setBusy(true)
         Thread {
             try {
-                val profiles = api("/api/admin/profiles?type=hotspot")
+                api("/api/admin/profiles?type=hotspot")
                 runOnUiThread {
                     connected = true
                     showMessage("اتصال موفق بود.", true)
@@ -179,9 +179,9 @@ class AdminActivity : Activity() {
     private fun loadData() {
         if (!connected) return
         setBusy(true)
+        val type = targetType
         Thread {
             try {
-                val type = targetType
                 val profiles = api("/api/admin/profiles?type=$type").optJSONArray("profiles") ?: JSONArray()
                 val users = api("/api/admin/users?type=$type").optJSONArray("users") ?: JSONArray()
                 runOnUiThread {
@@ -219,10 +219,11 @@ class AdminActivity : Activity() {
             return
         }
         setBusy(true)
+        val type = targetType
         Thread {
             try {
                 val body = JSONObject()
-                    .put("type", targetType)
+                    .put("type", type)
                     .put("username", username)
                     .put("password", password)
                     .put("profile", profile)
@@ -306,10 +307,11 @@ class AdminActivity : Activity() {
 
     private fun deleteUser(username: String) {
         setBusy(true)
+        val type = targetType
         Thread {
             try {
                 val encoded = URLEncoder.encode(username, "UTF-8")
-                api("/api/admin/users?type=$targetType&username=$encoded", "DELETE")
+                api("/api/admin/users?type=$type&username=$encoded", "DELETE")
                 runOnUiThread {
                     showMessage("کاربر $username حذف شد.", true)
                     setBusy(false)
